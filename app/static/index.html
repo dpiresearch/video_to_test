@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Video → Test Case</title>
+<link rel="icon" href="data:,">
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --muted:#647089; --line:#e2e6ee; --accent:#2f6fed; --ok:#1f9d55; --bad:#d64545; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background:var(--bg); color:var(--ink); }
+  header { padding:20px 28px; background:var(--card); border-bottom:1px solid var(--line); }
+  header h1 { margin:0; font-size:20px; }
+  header p { margin:4px 0 0; color:var(--muted); }
+  main { max-width:1100px; margin:0 auto; padding:24px; display:grid; grid-template-columns:minmax(0,1fr); gap:20px; }
+  #results { grid-template-columns:minmax(0,1fr); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:20px; }
+  .card h2 { margin:0 0 12px; font-size:17px; }
+  .tabs { display:flex; gap:8px; margin-bottom:14px; }
+  .tabs button { flex:none; }
+  button { font:inherit; padding:8px 14px; border-radius:7px; border:1px solid var(--line); background:#fff; cursor:pointer; }
+  button.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+  button.active { background:#e8efff; border-color:var(--accent); color:var(--accent); }
+  button.rec { background:var(--bad); color:#fff; border-color:var(--bad); }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  .drop { border:2px dashed var(--line); border-radius:10px; padding:28px; text-align:center; color:var(--muted); cursor:pointer; }
+  .drop.over { border-color:var(--accent); background:#f0f5ff; }
+  video { width:100%; max-height:420px; background:#000; border-radius:8px; }
+  .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:12px; }
+  textarea { width:100%; font:inherit; padding:8px; border:1px solid var(--line); border-radius:7px; min-height:54px; }
+  label.small { font-size:13px; color:var(--muted); }
+  .frames { display:flex; gap:6px; overflow-x:auto; padding-bottom:6px; }
+  .frames figure { margin:0; flex:none; text-align:center; font-size:11px; color:var(--muted); }
+  .frames img { height:70px; border-radius:4px; display:block; }
+  .status { color:var(--muted); }
+  .error { color:var(--bad); white-space:pre-wrap; }
+  .spinner { display:inline-block; width:14px; height:14px; border:2px solid var(--line); border-top-color:var(--accent); border-radius:50%; animation:spin 1s linear infinite; vertical-align:-2px; margin-right:6px; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .step { display:grid; grid-template-columns:150px 1fr; gap:14px; padding:12px 0; border-top:1px solid var(--line); }
+  .step:first-child { border-top:none; }
+  .step img { width:150px; border-radius:6px; cursor:pointer; }
+  .step .time { font-size:12px; color:var(--accent); font-weight:600; }
+  .step .obs { color:var(--muted); }
+  table { width:100%; border-collapse:collapse; }
+  th, td { text-align:left; vertical-align:top; padding:8px; border-bottom:1px solid var(--line); }
+  th { background:#f3f5f9; font-size:13px; }
+  ul { margin:4px 0 12px; padding-left:20px; }
+  h3 { font-size:14px; margin:16px 0 4px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); }
+  .pill { display:inline-block; padding:1px 8px; border-radius:20px; background:#eef2f8; font-size:12px; margin-right:6px; }
+  .hidden { display:none !important; }
+  @media (max-width:640px){ .step { grid-template-columns:1fr; } .step img { width:100%; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Video → Test Case</h1>
+  <p>Record or upload a video of a test. The app breaks it into steps and writes a test case procedure.</p>
+</header>
+<main>
+  <section class="card">
+    <div class="tabs">
+      <button id="tabUpload" class="active">Upload video</button>
+      <button id="tabRecord">Record live</button>
+    </div>
+
+    <div id="uploadPane">
+      <div id="drop" class="drop">Drop a video file here or <u>click to choose</u> (MP4, MOV, WebM)</div>
+      <input id="fileInput" type="file" accept="video/*" class="hidden">
+    </div>
+
+    <div id="recordPane" class="hidden">
+      <video id="live" autoplay muted playsinline></video>
+      <div class="row">
+        <button id="camStart">Enable camera</button>
+        <select id="camSelect" class="hidden"></select>
+        <button id="recBtn" disabled>● Start recording</button>
+        <span id="recTime" class="status"></span>
+      </div>
+    </div>
+
+    <div id="previewWrap" class="hidden" style="margin-top:16px">
+      <video id="preview" controls playsinline></video>
+      <div class="row">
+        <label class="small" for="ctx">Optional context (what's being tested, device names…)</label>
+        <textarea id="ctx" placeholder="e.g. Verifying the LTM-1C board transmits on the 70cm band"></textarea>
+      </div>
+      <div class="row">
+        <label class="small">Frames to sample <input id="nFrames" type="number" min="4" max="20" value="16" style="width:60px"></label>
+        <button id="analyzeBtn" class="primary">Analyze video</button>
+        <span id="status" class="status"></span>
+      </div>
+      <div id="framesWrap" class="frames" style="margin-top:12px"></div>
+    </div>
+  </section>
+
+  <section id="results" class="hidden"></section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let currentBlob = null, currentName = "video", frames = [], lastResult = null;
+
+// ---------- tabs ----------
+function showTab(rec) {
+  $("tabUpload").classList.toggle("active", !rec);
+  $("tabRecord").classList.toggle("active", rec);
+  $("uploadPane").classList.toggle("hidden", rec);
+  $("recordPane").classList.toggle("hidden", !rec);
+}
+$("tabUpload").onclick = () => showTab(false);
+$("tabRecord").onclick = () => showTab(true);
+
+// ---------- upload ----------
+const drop = $("drop");
+drop.onclick = () => $("fileInput").click();
+$("fileInput").onchange = (e) => e.target.files[0] && loadVideo(e.target.files[0], e.target.files[0].name);
+drop.ondragover = (e) => { e.preventDefault(); drop.classList.add("over"); };
+drop.ondragleave = () => drop.classList.remove("over");
+drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove("over"); const f = e.dataTransfer.files[0]; f && loadVideo(f, f.name); };
+
+function loadVideo(blob, name) {
+  currentBlob = blob; currentName = name || "video";
+  $("preview").src = URL.createObjectURL(blob);
+  $("previewWrap").classList.remove("hidden");
+  $("framesWrap").innerHTML = ""; $("status").textContent = ""; $("results").classList.add("hidden");
+}
+
+// ---------- recording ----------
+let stream = null, recorder = null, chunks = [], recStart = 0, recTimer = null;
+async function startCamera(deviceId) {
+  if (stream) stream.getTracks().forEach(t => t.stop());
+  const video = deviceId ? { deviceId: { exact: deviceId } } : { facingMode: "environment" };
+  video.width = { ideal: 1280 }; video.height = { ideal: 720 };
+  stream = await navigator.mediaDevices.getUserMedia({ video, audio: true });
+  $("live").srcObject = stream;
+  $("recBtn").disabled = false;
+  const cams = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === "videoinput");
+  if (cams.length > 1) {
+    const sel = $("camSelect"); sel.classList.remove("hidden");
+    const active = stream.getVideoTracks()[0].getSettings().deviceId;
+    sel.innerHTML = cams.map((c, i) => `<option value="${c.deviceId}" ${c.deviceId === active ? "selected" : ""}>${c.label || "Camera " + (i + 1)}</option>`).join("");
+  }
+}
+$("camStart").onclick = async () => {
+  try { await startCamera(); $("camStart").classList.add("hidden"); }
+  catch (e) { alert("Could not access camera: " + e.message); }
+};
+$("camSelect").onchange = (e) => startCamera(e.target.value);
+$("recBtn").onclick = () => {
+  if (recorder && recorder.state === "recording") { recorder.stop(); return; }
+  const mime = ["video/mp4", "video/webm;codecs=vp9", "video/webm"].find(m => MediaRecorder.isTypeSupported(m)) || "";
+  recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : {});
+  chunks = [];
+  recorder.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+  recorder.onstop = () => {
+    clearInterval(recTimer);
+    $("recBtn").textContent = "● Start recording"; $("recBtn").classList.remove("rec");
+    const type = recorder.mimeType || "video/webm";
+    const blob = new Blob(chunks, { type });
+    loadVideo(blob, "recording-" + new Date().toISOString().replace(/[:.]/g, "-") + (type.includes("mp4") ? ".mp4" : ".webm"));
+  };
+  recorder.start(250);
+  recStart = Date.now();
+  recTimer = setInterval(() => $("recTime").textContent = ((Date.now() - recStart) / 1000).toFixed(1) + " s", 100);
+  $("recBtn").textContent = "■ Stop recording"; $("recBtn").classList.add("rec");
+};
+
+// ---------- frame extraction ----------
+function once(el, ev) { return new Promise(r => el.addEventListener(ev, r, { once: true })); }
+
+async function getDuration(v) {
+  if (v.readyState < 1) await once(v, "loadedmetadata");
+  if (isFinite(v.duration) && v.duration > 0) return v.duration;
+  // MediaRecorder WebM files have no duration until we seek to the end
+  v.currentTime = 1e101;
+  await once(v, "durationchange");
+  const d = v.duration; v.currentTime = 0; await once(v, "seeked");
+  return d;
+}
+
+async function extractFrames(blob, n) {
+  const v = document.createElement("video");
+  v.muted = true; v.playsInline = true; v.preload = "auto";
+  v.src = URL.createObjectURL(blob);
+  const duration = await getDuration(v);
+  const canvas = document.createElement("canvas");
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const t = Math.min(duration - 0.05, duration * (i + 0.5) / n);
+    v.currentTime = Math.max(0, t);
+    await once(v, "seeked");
+    const scale = Math.min(1, 768 / v.videoWidth);
+    canvas.width = Math.round(v.videoWidth * scale); canvas.height = Math.round(v.videoHeight * scale);
+    canvas.getContext("2d").drawImage(v, 0, 0, canvas.width, canvas.height);
+    out.push({ t: +t.toFixed(2), data: canvas.toDataURL("image/jpeg", 0.75) });
+  }
+  URL.revokeObjectURL(v.src);
+  return { frames: out, duration };
+}
+
+// ---------- analyze ----------
+$("analyzeBtn").onclick = async () => {
+  if (!currentBlob) return;
+  const btn = $("analyzeBtn"), status = $("status");
+  btn.disabled = true;
+  try {
+    status.innerHTML = '<span class="spinner"></span>Extracting frames…';
+    const n = Math.max(4, Math.min(20, parseInt($("nFrames").value) || 16));
+    const res = await extractFrames(currentBlob, n);
+    frames = res.frames;
+    $("framesWrap").innerHTML = frames.map((f, i) => `<figure><img src="${f.data}"><figcaption>#${i} · ${f.t}s</figcaption></figure>`).join("");
+    status.innerHTML = `<span class="spinner"></span>Analyzing ${frames.length} frames from a ${res.duration.toFixed(1)}s video with Claude (this usually takes 30–90 s)…`;
+    const t0 = Date.now();
+    const r = await fetch("api/analyze", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ frames, context: $("ctx").value }),
+    });
+    const body = await r.json().catch(() => ({ error: "HTTP " + r.status }));
+    if (!r.ok) throw new Error(body.error || body.message || ("HTTP " + r.status));
+    lastResult = body;
+    status.textContent = `Done in ${((Date.now() - t0) / 1000).toFixed(0)} s.`;
+    renderResults(body);
+  } catch (e) {
+    status.innerHTML = `<span class="error">Error: ${esc(e.message)}</span>`;
+  } finally { btn.disabled = false; }
+};
+
+// ---------- rendering ----------
+function esc(s) { return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+const list = (a) => (a && a.length) ? `<ul>${a.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : "<p class='status'>—</p>";
+const fmtT = (s) => Number(s).toFixed(1) + "s";
+
+function renderResults(r) {
+  const tc = r.test_case || {};
+  const steps = (r.steps || []).map((s, i) => {
+    const f = frames[s.key_frame_index] || frames[0];
+    return `<div class="step">
+      <img src="${f ? f.data : ""}" title="Jump to ${fmtT(s.start_time)}" onclick="seekTo(${Number(s.start_time)})">
+      <div><div class="time">Step ${i + 1} · ${fmtT(s.start_time)} – ${fmtT(s.end_time)}</div>
+      <div><b>${esc(s.action)}</b></div><div class="obs">${esc(s.observation)}</div></div></div>`;
+  }).join("");
+  const proc = (tc.procedure || []).map(p => `<tr><td>${esc(p.step)}</td><td>${esc(p.action)}</td><td>${esc(p.expected_result)}</td><td style="width:90px"></td></tr>`).join("");
+  $("results").innerHTML = `
+    <div class="card">
+      <h2>${esc(r.title)}</h2>
+      <p>${esc(r.summary)}</p>
+      <p><b>Objective:</b> ${esc(r.test_objective)}</p>
+      <div>${(r.equipment || []).map(e => `<span class="pill" title="${esc(e.role)}">${esc(e.name)} — <i>${esc(e.role)}</i></span>`).join(" ")}</div>
+      <div class="row">
+        <button onclick="download('md')">Download Markdown</button>
+        <button onclick="download('json')">Download JSON</button>
+        <button onclick="navigator.clipboard.writeText(toMarkdown(lastResult)).then(()=>this.textContent='Copied ✓')">Copy Markdown</button>
+      </div>
+    </div>
+    <div class="card"><h2>Observed action steps</h2>${steps}</div>
+    <div class="card">
+      <h2>Test case ${esc(tc.id)}: ${esc(tc.title)}</h2>
+      <p><b>Objective:</b> ${esc(tc.objective)}</p>
+      <h3>Preconditions</h3>${list(tc.preconditions)}
+      <h3>Setup</h3>${list(tc.setup)}
+      <h3>Procedure</h3>
+      <table><thead><tr><th>#</th><th>Action</th><th>Expected result</th><th>Pass/Fail</th></tr></thead><tbody>${proc}</tbody></table>
+      <h3>Pass criteria</h3>${list(tc.pass_criteria)}
+      <h3>Fail criteria</h3>${list(tc.fail_criteria)}
+      <h3>Teardown</h3>${list(tc.teardown)}
+      <h3>Assumptions &amp; open questions</h3>${list(r.assumptions)}
+      <p class="status" style="font-size:12px">Generated by ${esc(r.model)} · ${r.usage ? r.usage.inputTokens + " in / " + r.usage.outputTokens + " out tokens" : ""}</p>
+    </div>`;
+  $("results").classList.remove("hidden");
+  $("results").style.display = "grid"; $("results").style.gap = "20px";
+  $("results").scrollIntoView({ behavior: "smooth" });
+}
+
+function seekTo(t) { const p = $("preview"); p.currentTime = t; p.scrollIntoView({ behavior: "smooth", block: "center" }); p.play(); }
+
+function toMarkdown(r) {
+  const tc = r.test_case || {};
+  const bl = (a) => (a || []).map(x => `- ${x}`).join("\n") || "- —";
+  const cell = (s) => String(s ?? "").replace(/\|/g, "\\|").replace(/\n/g, " ");
+  return `# ${r.title}
+
+**Source video:** ${currentName}
+
+${r.summary}
+
+**Test objective:** ${r.test_objective}
+
+## Equipment
+${(r.equipment || []).map(e => `- **${e.name}** — ${e.role}`).join("\n")}
+
+## Observed action steps
+| # | Time | Action | Observation |
+|---|------|--------|-------------|
+${(r.steps || []).map((s, i) => `| ${i + 1} | ${fmtT(s.start_time)}–${fmtT(s.end_time)} | ${cell(s.action)} | ${cell(s.observation)} |`).join("\n")}
+
+## Test case ${tc.id}: ${tc.title}
+
+**Objective:** ${tc.objective}
+
+### Preconditions
+${bl(tc.preconditions)}
+
+### Setup
+${bl(tc.setup)}
+
+### Procedure
+| Step | Action | Expected result | Pass/Fail |
+|------|--------|-----------------|-----------|
+${(tc.procedure || []).map(p => `| ${p.step} | ${cell(p.action)} | ${cell(p.expected_result)} | ☐ |`).join("\n")}
+
+### Pass criteria
+${bl(tc.pass_criteria)}
+
+### Fail criteria
+${bl(tc.fail_criteria)}
+
+### Teardown
+${bl(tc.teardown)}
+
+### Assumptions & open questions
+${bl(r.assumptions)}
+`;
+}
+
+function download(kind) {
+  const base = (lastResult.test_case?.id || "test-case").replace(/[^\w-]+/g, "_");
+  const [data, type, ext] = kind === "md"
+    ? [toMarkdown(lastResult), "text/markdown", "md"]
+    : [JSON.stringify(lastResult, null, 2), "application/json", "json"];
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([data], { type }));
+  a.download = `${base}.${ext}`; a.click();
+}
+</script>
+</body>
+</html>

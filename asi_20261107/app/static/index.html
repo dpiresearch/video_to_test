@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Video → Test Procedure · SAM 3.1</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Crect x=%222%22 y=%222%22 width=%2212%22 height=%2212%22 rx=%222%22 fill=%22%232f6bff%22/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <span class="logo">▣</span>
+    <div>
+      <h1>Video → Test Procedure</h1>
+      <p>Segment &amp; track with Meta SAM 3.1 · reason with Claude · get timed steps and a repeatable test case</p>
+    </div>
+  </div>
+  <div class="actions" id="exportBar" hidden>
+    <button class="ghost" id="newRun">New video</button>
+    <button id="exportMd">Export Markdown</button>
+    <button id="exportJson" class="ghost">Export JSON</button>
+  </div>
+</header>
+
+<main>
+  <!-- ============ INPUT ============ -->
+  <section class="card" id="inputCard">
+    <div class="tabs" role="tablist">
+      <button class="tab active" data-tab="upload" role="tab">Upload video</button>
+      <button class="tab" data-tab="record" role="tab">Record live</button>
+    </div>
+
+    <div class="tabpane" id="pane-upload">
+      <label class="drop" id="drop">
+        <input type="file" id="fileInput" accept="video/*" hidden>
+        <div class="drop-inner">
+          <div class="drop-icon">⬆</div>
+          <div><b>Drop a video here</b> or click to choose</div>
+          <div class="muted small">MP4 / MOV / WebM · up to ~10 min · audio is ignored</div>
+        </div>
+      </label>
+    </div>
+
+    <div class="tabpane" id="pane-record" hidden>
+      <div class="rec-wrap">
+        <video id="camPreview" playsinline muted autoplay></video>
+        <div class="rec-badge" id="recBadge" hidden>● REC <span id="recTime">0:00</span></div>
+      </div>
+      <div class="row">
+        <select id="camSelect" title="Camera"></select>
+        <button id="camStart" class="ghost">Enable camera</button>
+        <button id="recStart" disabled>Start recording</button>
+        <button id="recStop" class="danger" disabled>Stop</button>
+      </div>
+      <p class="muted small" id="recHint">Recording stays in your browser until you click Analyze.</p>
+    </div>
+
+    <div id="selected" class="selected" hidden>
+      <video id="srcPreview" controls playsinline muted></video>
+      <div class="selected-meta">
+        <div><b id="srcName"></b></div>
+        <div class="muted small" id="srcInfo"></div>
+      </div>
+    </div>
+
+    <details class="opts">
+      <summary>Options</summary>
+      <div class="grid2">
+        <label>Context for the model (optional)
+          <textarea id="context" rows="3" placeholder="e.g. Verifying the LTM-1C downlink is visible on the tinySA when the handheld keys up"></textarea>
+        </label>
+        <div>
+          <label>SAM concept prompts (optional, comma-separated)
+            <input id="concepts" placeholder="auto: Claude picks them from the video, plus “hand”">
+          </label>
+          <label>Key frames sent to Claude
+            <select id="frameCount">
+              <option>8</option><option>12</option><option selected>16</option><option>20</option>
+            </select>
+          </label>
+        </div>
+      </div>
+    </details>
+
+    <div class="row end">
+      <button id="analyze" class="primary" disabled>Analyze video</button>
+    </div>
+  </section>
+
+  <!-- ============ PROGRESS ============ -->
+  <section class="card" id="progressCard" hidden>
+    <ol class="stages" id="stages">
+      <li data-stage="prep"><span class="dot"></span><div><b>Prepare</b><small>upload video · sample key frames</small></div><time></time></li>
+      <li data-stage="concepts"><span class="dot"></span><div><b>Choose concepts</b><small>Claude picks what SAM should track</small></div><time></time></li>
+      <li data-stage="segment"><span class="dot"></span><div><b>Segment &amp; track</b><small>Meta SAM 3.1 over every frame</small></div><time></time></li>
+      <li data-stage="analyze"><span class="dot"></span><div><b>Build test case</b><small>Claude + SAM evidence → steps &amp; procedure</small></div><time></time></li>
+    </ol>
+    <div class="status" id="statusLine"></div>
+    <div class="error" id="errorBox" hidden></div>
+  </section>
+
+  <!-- ============ RESULTS ============ -->
+  <section id="results" hidden>
+    <div class="layout">
+      <div class="card player-card">
+        <div class="player">
+          <video id="player" playsinline controls muted></video>
+          <canvas id="overlay"></canvas>
+        </div>
+        <div class="row toggles">
+          <label><input type="checkbox" id="showMasks" checked> masks</label>
+          <label><input type="checkbox" id="showBoxes" checked> boxes</label>
+          <label><input type="checkbox" id="showLabels" checked> labels</label>
+          <span class="muted small" id="trackStats"></span>
+        </div>
+        <div class="legend" id="legend"></div>
+        <div class="timeline" id="timeline"></div>
+      </div>
+
+      <div class="card summary-card">
+        <div class="eyebrow" id="tcId"></div>
+        <h2 id="title"></h2>
+        <p id="summary"></p>
+        <h3>Objective</h3>
+        <p id="objective"></p>
+        <h3>Equipment</h3>
+        <ul id="equipment" class="tags-list"></ul>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Observed action steps</h2>
+      <p class="muted small">Timings are anchored on SAM tracks. Click a step to jump the video to it.</p>
+      <div id="steps" class="steps"></div>
+    </div>
+
+    <div class="card">
+      <h2>Test case procedure</h2>
+      <div class="grid2">
+        <div><h3>Preconditions</h3><ul id="preconditions"></ul></div>
+        <div><h3>Setup</h3><ul id="setup"></ul></div>
+      </div>
+      <h3>Procedure</h3>
+      <table class="proc">
+        <thead><tr><th>#</th><th>Action</th><th>Expected result</th><th>Video</th></tr></thead>
+        <tbody id="procedure"></tbody>
+      </table>
+      <div class="grid2">
+        <div><h3>Pass criteria</h3><ul id="pass" class="pass"></ul></div>
+        <div><h3>Fail criteria</h3><ul id="fail" class="fail"></ul></div>
+      </div>
+      <h3>Teardown</h3><ul id="teardown"></ul>
+      <h3>Assumptions &amp; unknowns</h3><ul id="assumptions" class="muted"></ul>
+    </div>
+
+    <details class="card">
+      <summary><b>SAM 3.1 evidence sent to the model</b></summary>
+      <pre id="evidence"></pre>
+    </details>
+  </section>
+</main>
+
+<footer class="muted small">
+  Segmentation: <a href="https://dev.meta.ai/docs/models#sam-3" target="_blank" rel="noopener">Meta SAM 3.1</a> ·
+  Reasoning: Claude on Amazon Bedrock · <span id="modelInfo"></span>
+</footer>
+
+<script type="module" src="/static/app.js"></script>
+</body>
+</html>

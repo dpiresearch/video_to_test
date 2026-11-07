@@ -1,0 +1,483 @@
+{
+  "title": "Over-the-air UHF emission check with tinySA: handheld transceiver / LTM-1C board near 436.5 MHz",
+  "summary": "A handheld camera records a bench setup: a green PCB stack labelled \"LTM-1C\" with a telescopic antenna on an SMA connector, a tinySA spectrum analyzer with a stubby antenna sweeping 240\u2013959 MHz, and a handheld UHF transceiver (lower left). At first the tinySA's highest peak is a background signal near 502 MHz at about \u221251 dBm. At about 2.5\u20132.8 s the transceiver's display lights up blue and a green LED comes on on the board. By about 3.8 s the analyzer's peak marker has jumped to about 436.5 MHz at \u221246.9 to \u221250.4 dBm and stays there. The transceiver backlight goes off near the end (~7.4\u20137.9 s). The green LED stays on.",
+  "objective": "Show over the air that an RF signal near 436.5 MHz (70 cm UHF band) shows up on the tinySA spectrum analyzer when the transmit/radio activity starts. The LTM-1C board's green LED comes on at the same time, which suggests the board responds to or takes part in the RF link.",
+  "objects": [
+    {
+      "track_id": "T1",
+      "name": "LTM-1C green PCB / board stack (with status LED)",
+      "role": "DUT (likely RF receiver/transceiver board)"
+    },
+    {
+      "track_id": "T2",
+      "name": "tinySA spectrum analyzer display",
+      "role": "Measurement instrument"
+    },
+    {
+      "track_id": "T3",
+      "name": "Handheld UHF transceiver LCD (VFO/MR radio)",
+      "role": "Stimulus source / indicator of transmit activity"
+    },
+    {
+      "track_id": "T4",
+      "name": "Braided USB cable to tinySA",
+      "role": "Power/data for instrument"
+    },
+    {
+      "track_id": "T5",
+      "name": "Small wire on board (near label)",
+      "role": "Board wiring"
+    },
+    {
+      "track_id": "T6",
+      "name": "Small wire/connector on board",
+      "role": "Board wiring"
+    },
+    {
+      "track_id": "T7",
+      "name": "White cable loop behind board",
+      "role": "Cabling"
+    },
+    {
+      "track_id": "T8",
+      "name": "Black cable (USB/power to board)",
+      "role": "Power/data for DUT"
+    },
+    {
+      "track_id": "T9",
+      "name": "White lead from board header",
+      "role": "Board wiring / antenna feed"
+    },
+    {
+      "track_id": "T10",
+      "name": "Cable at top-right edge",
+      "role": "Background cabling"
+    },
+    {
+      "track_id": "T11",
+      "name": "Cable at top-right edge",
+      "role": "Background cabling"
+    }
+  ],
+  "equipment": [
+    {
+      "name": "tinySA spectrum analyzer (HIGH input mode, sweep START 240 MHz / STOP ~959 MHz, RBW ~621 kHz, marker 1 on peak)",
+      "role": "Measures the over-the-air RF spectrum and peak level"
+    },
+    {
+      "name": "Stubby rubber-duck antenna with gold SMA on tinySA",
+      "role": "Receive antenna for the analyzer"
+    },
+    {
+      "name": "LTM-1C board stack with telescopic antenna on SMA",
+      "role": "Device under test"
+    },
+    {
+      "name": "Handheld UHF transceiver (VFO/MR keypad radio)",
+      "role": "RF source / companion radio"
+    },
+    {
+      "name": "USB cables (T4, T8)",
+      "role": "Power the instrument and the DUT"
+    }
+  ],
+  "steps": [
+    {
+      "start": 0.0,
+      "end": 2.5,
+      "action": "Baseline: the setup is idle and the tinySA sweeps 240\u2013959 MHz.",
+      "observation": "Marker 1 sits on a background peak near 502 MHz at about \u221250.4 to \u221252.4 dBm. The transceiver LCD is unlit and the board's green LED is off.",
+      "track_ids": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "key_frame": 1,
+      "sam_evidence": "T2 and T3 visible from 0.00 s. T3 shows a dark/grey LCD in frames 0\u20134."
+    },
+    {
+      "start": 2.5,
+      "end": 2.8,
+      "action": "RF activity starts. The transceiver is keyed or operated (no hand visible, so this happened off-screen or electronically).",
+      "observation": "The transceiver LCD backlight turns blue and a green LED lights on the LTM-1C board near the header.",
+      "track_ids": [
+        "T3",
+        "T1"
+      ],
+      "key_frame": 5,
+      "sam_evidence": "T3 LCD changes from grey (frame 4, 2.29 s) to blue (frame 5, 2.79 s). The LED near the T9 region first appears in frame 5."
+    },
+    {
+      "start": 2.8,
+      "end": 3.8,
+      "action": "The tinySA sweep updates with the new signal.",
+      "observation": "By frame 7 (3.81 s) marker 1 has moved from about 502 MHz to 436.5 MHz at \u221248.4 dBm, with a distinct peak in the lower part of the span.",
+      "track_ids": [
+        "T2"
+      ],
+      "key_frame": 7,
+      "sam_evidence": "T2 readout changes between frame 6 (502.1 MHz) and frame 7 (436.5 MHz)."
+    },
+    {
+      "start": 3.8,
+      "end": 7.4,
+      "action": "Signal held. The operator keeps the setup in view while the camera moves slightly.",
+      "observation": "The marker stays at 436.3\u2013436.5 MHz, ranging from \u221246.9 to \u221250.4 dBm. The transceiver backlight and the board LED stay on.",
+      "track_ids": [
+        "T2",
+        "T3",
+        "T1"
+      ],
+      "key_frame": 10,
+      "sam_evidence": "T3 blue in frames 5\u201314. T10 and T11 appear at 4.08 s and 4.35 s because the camera pans (background cables). T7 size changes reflect camera motion or occlusion."
+    },
+    {
+      "start": 7.4,
+      "end": 8.13,
+      "action": "Transmission or radio activity ends, or the radio backlight times out.",
+      "observation": "The transceiver LCD goes unlit again by 7.88 s. The tinySA still shows marker 436.3 MHz at \u221250.4 dBm (the sweep may lag). The board LED is still on.",
+      "track_ids": [
+        "T3",
+        "T2",
+        "T1"
+      ],
+      "key_frame": 15,
+      "sam_evidence": "T3 grey in frame 15 (7.88 s). T7 shrinks between 7.29 and 7.89 s (camera motion)."
+    }
+  ],
+  "test_case": {
+    "id": "TC-RF-001",
+    "title": "Over-the-air detection of a 436.5 MHz UHF emission with tinySA and DUT indicator response",
+    "objective": "Confirm that when the RF link is active, the tinySA detects a carrier near 436.5 MHz clearly above the background, and that the LTM-1C board's status LED turns on.",
+    "preconditions": [
+      "The tinySA is charged or USB-powered and has been calibrated.",
+      "The LTM-1C board is powered over USB and its firmware is loaded.",
+      "The handheld UHF transceiver is set to about 436.5 MHz (70 cm band), and the operator holds a valid licence or uses a dummy load/low power as required.",
+      "The bench area has no other strong transmitters in the 430\u2013440 MHz range."
+    ],
+    "setup": [
+      "Fit the stubby antenna to the tinySA RF input and set the sweep to START 240 MHz / STOP ~959 MHz, HIGH mode, RBW auto (~621 kHz), marker 1 = peak search.",
+      "Fit the telescopic antenna to the LTM-1C SMA connector and lay it horizontally toward the tinySA.",
+      "Place the handheld transceiver within about 30 cm of the tinySA antenna and the board antenna.",
+      "Check that the board's green status LED is off before starting."
+    ],
+    "procedure": [
+      {
+        "step": 1,
+        "action": "With no transmission active, watch the tinySA for at least 2 sweeps and note the marker 1 frequency and level.",
+        "expected_result": "The marker shows only a background peak (about 502 MHz, about \u221251 dBm in the reference run). No dominant peak near 436.5 MHz. The board LED is off.",
+        "video_ref": "0.0-2.5s"
+      },
+      {
+        "step": 2,
+        "action": "Key the handheld transceiver (or start the DUT transmit/receive activity) on 436.5 MHz.",
+        "expected_result": "The transceiver display lights up and the board's green LED turns on within about 0.5 s.",
+        "video_ref": "2.5-2.8s"
+      },
+      {
+        "step": 3,
+        "action": "Wait for the tinySA sweep to update and read marker 1.",
+        "expected_result": "Marker 1 moves to 436.5 MHz \u00b10.5 MHz with a level of about \u221247 to \u221250 dBm, at least 1\u20132 dB above the earlier background peak and clearly visible in the trace.",
+        "video_ref": "2.8-3.8s"
+      },
+      {
+        "step": 4,
+        "action": "Keep the RF activity running for about 3\u20134 s and watch the reading.",
+        "expected_result": "The marker stays within 436.3\u2013436.5 MHz and the level stays roughly steady (\u221246.9 to \u221250.4 dBm). The board LED stays on.",
+        "video_ref": "3.8-7.4s"
+      },
+      {
+        "step": 5,
+        "action": "Release PTT or stop the activity, then watch for 2 more sweeps.",
+        "expected_result": "The transceiver display goes dark. The 436.5 MHz peak should fade back to the background level in later sweeps. Record whether the board LED stays latched on (it did in the reference run).",
+        "video_ref": "7.4-8.13s"
+      }
+    ],
+    "pass_criteria": [
+      "The tinySA marker reads 436.5 MHz \u00b10.5 MHz while the link is active.",
+      "The peak level is about \u221250 dBm or higher at the given distance and stands out from the background.",
+      "The board's green LED lights when the RF activity starts.",
+      "The peak is absent, or back at the background level, before the activity starts."
+    ],
+    "fail_criteria": [
+      "No peak near 436.5 MHz while the transceiver/DUT is active.",
+      "The peak is off-frequency by more than 0.5 MHz.",
+      "The board LED does not light during the activity.",
+      "The signal is unstable or keeps dropping out during the hold period."
+    ],
+    "teardown": [
+      "Unkey the transceiver and switch it off.",
+      "Save or screenshot the tinySA trace if needed, then return the analyzer to its default sweep.",
+      "Power down the LTM-1C board and disconnect the USB cables.",
+      "Remove the antennas and store them."
+    ]
+  },
+  "assumptions": [
+    "The roles are inferred: the handheld transceiver is assumed to be the RF source (its backlight turns on at the same time as the 436.5 MHz peak appears). The LTM-1C board might instead be the transmitter, with the radio as receiver or monitor. The video cannot tell which.",
+    "No hands were detected, so the triggering action (PTT press, software command) happened off-screen.",
+    "The green LED's meaning (signal detected, transmitting, or plain activity) is not labelled. Whether it stays latched after the activity cannot be confirmed in the 8 s clip.",
+    "The tinySA readings (502 MHz/\u221252.4 dBm, 436.5 MHz/\u221248.4 dBm, etc.) are read from small on-screen text and may be off by \u00b10.1 MHz or \u00b10.1 dB.",
+    "The pass threshold levels and the \u00b10.5 MHz tolerance come from the observed run, not from a documented specification.",
+    "The appearance of T10/T11 and the T7 size changes come from handheld camera motion, not from changes in the setup."
+  ],
+  "model": "us.anthropic.claude-opus-5-5",
+  "usage": {
+    "inputTokens": 10975,
+    "outputTokens": 4701,
+    "totalTokens": 15676,
+    "cacheReadInputTokens": 0,
+    "cacheWriteInputTokens": 0
+  },
+  "sam_evidence": "SAM 3.1 tracked 11 object instance(s) over 8.13s (~29.6 fps). Coordinates are fractions of the frame (0..1).\n- T1 \"circuit board #1\": visible 0.00-8.10s (100% of video); usually top-center, ~19.1% of frame area; confidence 0.96\n- T2 \"screen #1\": visible 0.00-8.10s (100% of video); usually bottom-right, ~15.8% of frame area; confidence 0.98\n- T3 \"screen #2\": visible 0.00-8.10s (100% of video); usually bottom-left, ~3.5% of frame area; confidence 0.89\n- T4 \"cable #1\": visible 0.00-8.10s (100% of video); usually top-right, ~3.2% of frame area; confidence 0.81\n- T5 \"cable #2\": visible 0.00-8.10s (100% of video); usually center, ~0.5% of frame area; confidence 0.73\n- T6 \"cable #3\": visible 0.00-8.10s (100% of video); usually top-center, ~0.1% of frame area; confidence 0.73\n- T7 \"cable #4\": visible 0.00-8.10s (100% of video); usually middle-left, ~2.9% of frame area; confidence 0.73\n- T8 \"cable #5\": visible 0.00-8.10s (100% of video); usually middle-left, ~6.6% of frame area; confidence 0.84\n- T9 \"cable #6\": visible 0.10-8.10s (99% of video); usually center, ~0.7% of frame area; confidence 0.71\n- T10 \"cable #7\": visible 4.08-8.10s (50% of video); usually top-right, ~0.1% of frame area; confidence 0.7\n- T11 \"cable #8\": visible 4.35-8.10s (46% of video); usually top-right, ~0.0% of frame area; confidence 0.72\nEvent timeline (chronological, from every video frame):\n      1.82s  T7 (cable #4) apparent size grows x1.9 (moved toward/away from camera, or partly hidden/revealed) (1.82-2.43s)\n      3.04s  T7 (cable #4) apparent size shrinks x0.5 (moved toward/away from camera, or partly hidden/revealed) (3.04-3.64s)\n      3.64s  T7 (cable #4) apparent size grows x1.5 (moved toward/away from camera, or partly hidden/revealed) (3.64-4.25s)\n      4.08s  T10 (cable #7) appears\n      4.35s  T11 (cable #8) appears\n      7.29s  T7 (cable #4) apparent size shrinks x0.6 (moved toward/away from camera, or partly hidden/revealed) (7.29-7.89s)\nNo hands/operators were detected by SAM (actions may happen off-screen or be electronic).\nTracks visible in each key frame (boxes are drawn on the images):\n    frame 0 (t=0.25s): T1, T2, T3, T4, T5, T6, T7, T8, T9\n    frame 1 (t=0.76s): T1, T2, T3, T4, T5, T6, T7, T8, T9\n    frame 2 (t=1.27s): T1, T2, T3, T4, T5, T6, T7, T8, T9\n    frame 3 (t=1.78s): T1, T2, T3, T4, T5, T6, T7, T8, T9\n    frame 4 (t=2.29s): T1, T2, T3, T4, T5, T6, T7, T8, T9\n    frame 5 (t=2.79s): T1, T2, T3, T4, T5, T6, T7, T8, T9\n    frame 6 (t=3.30s): T1, T2, T3, T4, T5, T6, T7, T8, T9\n    frame 7 (t=3.81s): T1, T2, T3, T4, T5, T6, T7, T8, T9\n    frame 8 (t=4.32s): T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11  [new: T10, T11]\n    frame 9 (t=4.83s): T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11\n    frame 10 (t=5.33s): T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11\n    frame 11 (t=5.84s): T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11\n    frame 12 (t=6.35s): T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11\n    frame 13 (t=6.86s): T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11\n    frame 14 (t=7.37s): T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11\n    frame 15 (t=7.88s): T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11",
+  "track_facts": [
+    {
+      "track_id": "T1",
+      "label": "circuit board #1",
+      "concept": "circuit board",
+      "visible": [
+        [
+          0.0,
+          8.1
+        ]
+      ],
+      "coverage": 1.0,
+      "typical_position": "top-center",
+      "typical_size_pct": 19.1,
+      "mean_confidence": 0.96,
+      "events": []
+    },
+    {
+      "track_id": "T2",
+      "label": "screen #1",
+      "concept": "screen",
+      "visible": [
+        [
+          0.0,
+          8.1
+        ]
+      ],
+      "coverage": 1.0,
+      "typical_position": "bottom-right",
+      "typical_size_pct": 15.8,
+      "mean_confidence": 0.98,
+      "events": []
+    },
+    {
+      "track_id": "T3",
+      "label": "screen #2",
+      "concept": "screen",
+      "visible": [
+        [
+          0.0,
+          8.1
+        ]
+      ],
+      "coverage": 1.0,
+      "typical_position": "bottom-left",
+      "typical_size_pct": 3.5,
+      "mean_confidence": 0.89,
+      "events": []
+    },
+    {
+      "track_id": "T4",
+      "label": "cable #1",
+      "concept": "cable",
+      "visible": [
+        [
+          0.0,
+          8.1
+        ]
+      ],
+      "coverage": 1.0,
+      "typical_position": "top-right",
+      "typical_size_pct": 3.2,
+      "mean_confidence": 0.81,
+      "events": []
+    },
+    {
+      "track_id": "T5",
+      "label": "cable #2",
+      "concept": "cable",
+      "visible": [
+        [
+          0.0,
+          8.1
+        ]
+      ],
+      "coverage": 1.0,
+      "typical_position": "center",
+      "typical_size_pct": 0.5,
+      "mean_confidence": 0.73,
+      "events": []
+    },
+    {
+      "track_id": "T6",
+      "label": "cable #3",
+      "concept": "cable",
+      "visible": [
+        [
+          0.0,
+          8.1
+        ]
+      ],
+      "coverage": 1.0,
+      "typical_position": "top-center",
+      "typical_size_pct": 0.1,
+      "mean_confidence": 0.73,
+      "events": []
+    },
+    {
+      "track_id": "T7",
+      "label": "cable #4",
+      "concept": "cable",
+      "visible": [
+        [
+          0.0,
+          8.1
+        ]
+      ],
+      "coverage": 1.0,
+      "typical_position": "middle-left",
+      "typical_size_pct": 2.9,
+      "mean_confidence": 0.73,
+      "events": [
+        "1.82-2.43s apparent size grows x1.9 (moved toward/away from camera, or partly hidden/revealed)",
+        "3.04-3.64s apparent size shrinks x0.5 (moved toward/away from camera, or partly hidden/revealed)",
+        "3.64-4.25s apparent size grows x1.5 (moved toward/away from camera, or partly hidden/revealed)",
+        "7.29-7.89s apparent size shrinks x0.6 (moved toward/away from camera, or partly hidden/revealed)"
+      ]
+    },
+    {
+      "track_id": "T8",
+      "label": "cable #5",
+      "concept": "cable",
+      "visible": [
+        [
+          0.0,
+          8.1
+        ]
+      ],
+      "coverage": 1.0,
+      "typical_position": "middle-left",
+      "typical_size_pct": 6.6,
+      "mean_confidence": 0.84,
+      "events": []
+    },
+    {
+      "track_id": "T9",
+      "label": "cable #6",
+      "concept": "cable",
+      "visible": [
+        [
+          0.1,
+          8.1
+        ]
+      ],
+      "coverage": 0.99,
+      "typical_position": "center",
+      "typical_size_pct": 0.7,
+      "mean_confidence": 0.71,
+      "events": []
+    },
+    {
+      "track_id": "T10",
+      "label": "cable #7",
+      "concept": "cable",
+      "visible": [
+        [
+          4.08,
+          8.1
+        ]
+      ],
+      "coverage": 0.5,
+      "typical_position": "top-right",
+      "typical_size_pct": 0.1,
+      "mean_confidence": 0.7,
+      "events": []
+    },
+    {
+      "track_id": "T11",
+      "label": "cable #8",
+      "concept": "cable",
+      "visible": [
+        [
+          4.35,
+          8.1
+        ]
+      ],
+      "coverage": 0.46,
+      "typical_position": "top-right",
+      "typical_size_pct": 0.0,
+      "mean_confidence": 0.72,
+      "events": []
+    }
+  ],
+  "concepts": {
+    "scene": "A green circuit board (labeled LTM-1C) is being checked with a tinySA handheld spectrum analyzer, whose green trace is displayed on its screen, while a telescopic antenna and a black RF probe are connected to it, and a handheld meter with a blue screen sits at left.",
+    "concepts": [
+      "hand",
+      "circuit board",
+      "screen",
+      "antenna",
+      "cable",
+      "probe"
+    ]
+  },
+  "tracks": [
+    {
+      "track_id": "T1",
+      "label": "circuit board #1",
+      "concept": "circuit board"
+    },
+    {
+      "track_id": "T2",
+      "label": "screen #1",
+      "concept": "screen"
+    },
+    {
+      "track_id": "T3",
+      "label": "screen #2",
+      "concept": "screen"
+    },
+    {
+      "track_id": "T4",
+      "label": "cable #1",
+      "concept": "cable"
+    },
+    {
+      "track_id": "T5",
+      "label": "cable #2",
+      "concept": "cable"
+    },
+    {
+      "track_id": "T6",
+      "label": "cable #3",
+      "concept": "cable"
+    },
+    {
+      "track_id": "T7",
+      "label": "cable #4",
+      "concept": "cable"
+    },
+    {
+      "track_id": "T8",
+      "label": "cable #5",
+      "concept": "cable"
+    },
+    {
+      "track_id": "T9",
+      "label": "cable #6",
+      "concept": "cable"
+    },
+    {
+      "track_id": "T10",
+      "label": "cable #7",
+      "concept": "cable"
+    },
+    {
+      "track_id": "T11",
+      "label": "cable #8",
+      "concept": "cable"
+    }
+  ]
+}

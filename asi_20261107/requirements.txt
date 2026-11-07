@@ -1,0 +1,5 @@
+# Runtime (Lambda) needs only boto3, which the Python 3.12 Lambda runtime provides.
+# Local dev / CLI extras:
+boto3
+pillow           # scripts/run_pipeline.py draws SAM boxes on key frames
+meta-sam-parser   # optional: reference parser used to verify app/sam.py tokenizer
