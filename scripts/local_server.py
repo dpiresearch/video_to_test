@@ -1,5 +1,6 @@
 """Run the Lambda handler locally: python scripts/local_server.py  ->  http://localhost:8000"""
 
+import base64
 import os
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -14,7 +15,7 @@ class Handler(BaseHTTPRequestHandler):
         body = self.rfile.read(length).decode() if length else None
         event = {"rawPath": self.path.split("?")[0], "body": body, "requestContext": {"http": {"method": method}}}
         res = lambda_handler(event, None)
-        data = res["body"].encode()
+        data = base64.b64decode(res["body"]) if res.get("isBase64Encoded") else res["body"].encode()
         self.send_response(res["statusCode"])
         for k, v in res["headers"].items():
             self.send_header(k, v)

@@ -6,6 +6,7 @@ set -euo pipefail
 APP=video-to-test
 REGION=${AWS_REGION:-us-east-1}
 MODEL_ID=${MODEL_ID:-us.anthropic.claude-opus-5-5}
+GITHUB_SECRET_ID=${GITHUB_SECRET_ID:-video-to-test/github}
 ROLE=${APP}-lambda-role
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
@@ -13,7 +14,7 @@ export AWS_DEFAULT_REGION=$REGION AWS_PAGER=""
 
 echo "==> Packaging"
 BUILD=$(mktemp -d)
-(cd "$ROOT/app" && zip -qr "$BUILD/app.zip" handler.py analyzer.py static)
+(cd "$ROOT/app" && zip -qr "$BUILD/app.zip" handler.py analyzer.py github_save.py static -x "*.DS_Store")
 
 echo "==> IAM role"
 if ! aws iam get-role --role-name "$ROLE" >/dev/null 2>&1; then
@@ -26,11 +27,14 @@ aws iam put-role-policy --role-name "$ROLE" --policy-name bedrock-invoke --polic
   "Version":"2012-10-17","Statement":[{"Effect":"Allow",
   "Action":["bedrock:InvokeModel","bedrock:InvokeModelWithResponseStream"],
   "Resource":["arn:aws:bedrock:*::foundation-model/anthropic.*","arn:aws:bedrock:*:'"$ACCOUNT"':inference-profile/*"]}]}'
+aws iam put-role-policy --role-name "$ROLE" --policy-name github-secret-read --policy-document '{
+  "Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"secretsmanager:GetSecretValue",
+  "Resource":"arn:aws:secretsmanager:'"$REGION"':'"$ACCOUNT"':secret:'"$GITHUB_SECRET_ID"'-*"}]}'
 ROLE_ARN=$(aws iam get-role --role-name "$ROLE" --query Role.Arn --output text)
 [[ -n "${CREATED_ROLE:-}" ]] && { echo "    waiting for role propagation"; sleep 12; }
 
 echo "==> Lambda function"
-ENV="Variables={MODEL_ID=$MODEL_ID,BEDROCK_REGION=$REGION}"
+ENV="Variables={MODEL_ID=$MODEL_ID,BEDROCK_REGION=$REGION,GITHUB_SECRET_ID=$GITHUB_SECRET_ID}"
 if aws lambda get-function --function-name "$APP" >/dev/null 2>&1; then
   aws lambda update-function-code --function-name "$APP" --zip-file "fileb://$BUILD/app.zip" >/dev/null
   aws lambda wait function-updated --function-name "$APP"

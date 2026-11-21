@@ -5,7 +5,7 @@ tracks the important objects through **every frame** with Meta's **Segment Anyth
 into timed, recognizable action steps grounded in those tracks, and writes a formal, repeatable **test case
 procedure** (preconditions, setup, numbered steps with expected results, pass/fail criteria, teardown).
 
-**Live:** https://ewl6j4w2czgdo52hqp7xkaeibu0ujqsa.lambda-url.us-east-1.on.aws/
+**Live:** taken down on 2026-11-08. Run `scripts/deploy.py` (see *Deploy*) to bring it back; it will get a new URL.
 
 Example output for `../data/IMG_0054.MP4`: [`examples/`](examples/) (JSON, Markdown test case, UI screenshot).
 

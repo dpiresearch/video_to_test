@@ -47,6 +47,9 @@
   ul { margin:4px 0 12px; padding-left:20px; }
   h3 { font-size:14px; margin:16px 0 4px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); }
   .pill { display:inline-block; padding:1px 8px; border-radius:20px; background:#eef2f8; font-size:12px; margin-right:6px; }
+  .ghpanel { margin-top:12px; padding:12px; border:1px solid var(--line); border-radius:8px; background:#fafbfd; }
+  .ghpanel input[type=text], .ghpanel input[type=password] { font:inherit; padding:6px 8px; border:1px solid var(--line); border-radius:6px; min-width:220px; }
+  .ok { color:var(--ok); }
   .hidden { display:none !important; }
   @media (max-width:640px){ .step { grid-template-columns:1fr; } .step img { width:100%; } }
 </style>
@@ -98,7 +101,8 @@
 
 <script>
 const $ = (id) => document.getElementById(id);
-let currentBlob = null, currentName = "video", frames = [], lastResult = null;
+let currentBlob = null, currentName = "video", frames = [], lastResult = null, ghStatus = { configured: false };
+fetch("api/github/status").then(r => r.json()).then(s => { ghStatus = s; }).catch(() => {});
 
 // ---------- tabs ----------
 function showTab(rec) {
@@ -192,7 +196,7 @@ async function extractFrames(blob, n) {
     const scale = Math.min(1, 768 / v.videoWidth);
     canvas.width = Math.round(v.videoWidth * scale); canvas.height = Math.round(v.videoHeight * scale);
     canvas.getContext("2d").drawImage(v, 0, 0, canvas.width, canvas.height);
-    out.push({ t: +t.toFixed(2), data: canvas.toDataURL("image/jpeg", 0.75) });
+    out.push({ t: +t.toFixed(2), data: canvas.toDataURL("image/jpeg", 0.75), w: canvas.width, h: canvas.height });
   }
   URL.revokeObjectURL(v.src);
   return { frames: out, duration };
@@ -247,9 +251,21 @@ function renderResults(r) {
       <p><b>Objective:</b> ${esc(r.test_objective)}</p>
       <div>${(r.equipment || []).map(e => `<span class="pill" title="${esc(e.role)}">${esc(e.name)} — <i>${esc(e.role)}</i></span>`).join(" ")}</div>
       <div class="row">
+        <button class="primary" id="pdfBtn" onclick="downloadPdf()">Download PDF</button>
         <button onclick="download('md')">Download Markdown</button>
         <button onclick="download('json')">Download JSON</button>
         <button onclick="navigator.clipboard.writeText(toMarkdown(lastResult)).then(()=>this.textContent='Copied ✓')">Copy Markdown</button>
+        <button id="ghBtn" onclick="toggleGh()" ${ghStatus.configured ? "" : "disabled title='GitHub saving is not configured on the server'"}>Save to GitHub</button>
+      </div>
+      <div id="ghPanel" class="ghpanel hidden">
+        <div>Commits the procedure (Markdown, PDF, JSON and key frames) to
+          <b>${esc(ghStatus.repo)}</b> on branch <b>${esc(ghStatus.branch)}</b>, under <code>${esc(ghStatus.path_prefix)}/</code>.</div>
+        <div class="row">
+          ${ghStatus.passcode_required ? `<input id="ghPass" type="password" placeholder="Save passcode" value="${esc(localStorage.getItem("ghPass") || "")}">` : ""}
+          <input id="ghMsg" type="text" placeholder="Commit message (optional)" style="flex:1">
+          <button class="primary" id="ghSave" onclick="saveToGithub()">Commit</button>
+        </div>
+        <div id="ghStatusMsg" class="status" style="margin-top:8px"></div>
       </div>
     </div>
     <div class="card"><h2>Observed action steps</h2>${steps}</div>
@@ -273,14 +289,18 @@ function renderResults(r) {
 
 function seekTo(t) { const p = $("preview"); p.currentTime = t; p.scrollIntoView({ behavior: "smooth", block: "center" }); p.play(); }
 
-function toMarkdown(r) {
+function toMarkdown(r, opts = {}) {
   const tc = r.test_case || {};
+  const keyFrames = opts.frameImages
+    ? `\n### Key frames\n${(r.steps || []).map((s, i) => `**Step ${i + 1}** (${fmtT(s.start_time)}): ${s.action}\n\n![Step ${i + 1}](frames/step-${i + 1}.jpg)\n`).join("\n")}`
+    : "";
+  const pdfLink = opts.pdfName ? `\n**Printable procedure:** [${opts.pdfName}](${opts.pdfName})\n` : "";
   const bl = (a) => (a || []).map(x => `- ${x}`).join("\n") || "- —";
   const cell = (s) => String(s ?? "").replace(/\|/g, "\\|").replace(/\n/g, " ");
   return `# ${r.title}
 
 **Source video:** ${currentName}
-
+${pdfLink}
 ${r.summary}
 
 **Test objective:** ${r.test_objective}
@@ -292,7 +312,7 @@ ${(r.equipment || []).map(e => `- **${e.name}** — ${e.role}`).join("\n")}
 | # | Time | Action | Observation |
 |---|------|--------|-------------|
 ${(r.steps || []).map((s, i) => `| ${i + 1} | ${fmtT(s.start_time)}–${fmtT(s.end_time)} | ${cell(s.action)} | ${cell(s.observation)} |`).join("\n")}
-
+${keyFrames}
 ## Test case ${tc.id}: ${tc.title}
 
 **Objective:** ${tc.objective}
@@ -322,14 +342,163 @@ ${bl(r.assumptions)}
 `;
 }
 
+const baseName = () => (lastResult.test_case?.id || "test-case").replace(/[^\w-]+/g, "_");
+
 function download(kind) {
-  const base = (lastResult.test_case?.id || "test-case").replace(/[^\w-]+/g, "_");
+  const base = baseName();
   const [data, type, ext] = kind === "md"
     ? [toMarkdown(lastResult), "text/markdown", "md"]
     : [JSON.stringify(lastResult, null, 2), "application/json", "json"];
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([data], { type }));
   a.download = `${base}.${ext}`; a.click();
+}
+
+// ---------- PDF ----------
+function loadScript(src) {
+  return new Promise((res, rej) => { const s = document.createElement("script"); s.src = src; s.onload = res; s.onerror = () => rej(new Error("Failed to load " + src)); document.head.appendChild(s); });
+}
+async function fontBase64(url) {
+  const buf = new Uint8Array(await (await fetch(url)).arrayBuffer());
+  let bin = ""; for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode.apply(null, buf.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+let pdfLibs = null;
+function loadPdfLibs() {
+  pdfLibs ??= (async () => {
+    await loadScript("static/vendor/jspdf.umd.min.js");
+    await loadScript("static/vendor/jspdf.plugin.autotable.min.js");
+    const [regular, bold] = await Promise.all([fontBase64("static/vendor/DejaVuSans.ttf"), fontBase64("static/vendor/DejaVuSans-Bold.ttf")]);
+    return { regular, bold };
+  })().catch(e => { pdfLibs = null; throw e; });
+  return pdfLibs;
+}
+
+async function buildPdf(r) {
+  const fonts = await loadPdfLibs();
+  const doc = new window.jspdf.jsPDF({ unit: "mm", format: "letter" });
+  doc.addFileToVFS("DejaVuSans.ttf", fonts.regular); doc.addFont("DejaVuSans.ttf", "DejaVu", "normal");
+  doc.addFileToVFS("DejaVuSans-Bold.ttf", fonts.bold); doc.addFont("DejaVuSans-Bold.ttf", "DejaVu", "bold");
+  const tc = r.test_case || {};
+  const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight(), M = 16, CW = W - 2 * M;
+  let y = M;
+  const ensure = (h) => { if (y + h > H - M - 6) { doc.addPage(); y = M; } };
+  const text = (str, { size = 10, bold = false, color = [29, 35, 48], gap = 1.5 } = {}) => {
+    doc.setFont("DejaVu", bold ? "bold" : "normal"); doc.setFontSize(size); doc.setTextColor(...color);
+    const lh = size * 0.42;
+    for (const line of doc.splitTextToSize(String(str ?? ""), CW)) { ensure(lh); doc.text(line, M, y + lh * 0.8); y += lh; }
+    y += gap;
+  };
+  const heading = (str) => { ensure(14); y += 3; text(str.toUpperCase(), { size: 10, bold: true, color: [47, 111, 237], gap: 1 }); };
+  const bullets = (arr) => {
+    if (!arr || !arr.length) return text("—", { color: [100, 112, 137] });
+    doc.setFont("DejaVu", "normal"); doc.setFontSize(10); doc.setTextColor(29, 35, 48);
+    for (const item of arr) {
+      const lines = doc.splitTextToSize(String(item), CW - 5);
+      lines.forEach((line, i) => { ensure(4.2); if (i === 0) doc.text("•", M + 1, y + 3.4); doc.text(line, M + 5, y + 3.4); y += 4.2; });
+      y += 0.8;
+    }
+    y += 1;
+  };
+  const table = (head, body, opts = {}) => {
+    doc.autoTable({
+      startY: y, head: [head], body, margin: { left: M, right: M, bottom: M + 6 },
+      styles: { font: "DejaVu", fontSize: 8.5, cellPadding: 1.8, valign: "top", lineColor: [226, 230, 238], lineWidth: 0.2 },
+      headStyles: { font: "DejaVu", fontStyle: "bold", fillColor: [243, 245, 249], textColor: [29, 35, 48] },
+      ...opts,
+    });
+    y = doc.lastAutoTable.finalY + 4;
+  };
+
+  // Title block
+  text(`Test Case ${tc.id || ""}`, { size: 9, bold: true, color: [100, 112, 137], gap: 0.5 });
+  text(tc.title || r.title, { size: 16, bold: true, gap: 2 });
+  table(["Source video", "Generated", "Model"], [[currentName, new Date().toLocaleString(), r.model || ""]], { theme: "plain", styles: { font: "DejaVu", fontSize: 8, cellPadding: 1 } });
+  heading("Objective"); text(tc.objective || r.test_objective);
+  heading("Summary of recorded test"); text(r.summary);
+  heading("Equipment");
+  table(["Item", "Role"], (r.equipment || []).map(e => [e.name, e.role]), { columnStyles: { 1: { cellWidth: 45 } } });
+  heading("Preconditions"); bullets(tc.preconditions);
+  heading("Setup"); bullets(tc.setup);
+
+  heading("Procedure");
+  table(["#", "Action", "Expected result", "Pass / Fail", "Notes"],
+    (tc.procedure || []).map(p => [p.step, p.action, p.expected_result, "☐ Pass\n☐ Fail", ""]),
+    { columnStyles: { 0: { cellWidth: 8 }, 3: { cellWidth: 20 }, 4: { cellWidth: 28 } } });
+  heading("Pass criteria"); bullets(tc.pass_criteria);
+  heading("Fail criteria"); bullets(tc.fail_criteria);
+  heading("Teardown"); bullets(tc.teardown);
+
+  heading("Observed steps from video");
+  const thumbW = 34;
+  table(["Key frame", "Time", "Action", "Observation"],
+    (r.steps || []).map(s => [{ content: "", frame: frames[s.key_frame_index] || frames[0] }, `${fmtT(s.start_time)}–${fmtT(s.end_time)}`, s.action, s.observation]),
+    {
+      rowPageBreak: "avoid",
+      columnStyles: { 0: { cellWidth: thumbW + 2, minCellHeight: thumbW * 9 / 16 + 2 }, 1: { cellWidth: 18 } },
+      didDrawCell: (d) => {
+        if (d.section !== "body" || d.column.index !== 0) return;
+        const f = d.cell.raw && d.cell.raw.frame;
+        if (!f) return;
+        const h = thumbW * (f.h && f.w ? f.h / f.w : 9 / 16);
+        doc.addImage(f.data, "JPEG", d.cell.x + 1, d.cell.y + 1, thumbW, Math.min(h, d.cell.height - 2));
+      },
+    });
+  heading("Assumptions & open questions"); bullets(r.assumptions);
+
+  heading("Execution record");
+  table(["Tester", "Date", "DUT serial / revision", "Overall result"], [["", "", "", "☐ Pass   ☐ Fail"]],
+    { bodyStyles: { minCellHeight: 12 } });
+
+  const n = doc.getNumberOfPages();
+  for (let i = 1; i <= n; i++) {
+    doc.setPage(i); doc.setFont("DejaVu", "normal"); doc.setFontSize(8); doc.setTextColor(100, 112, 137);
+    doc.text(`${tc.id || ""}  ${tc.title || ""}`.slice(0, 110), M, H - 8);
+    doc.text(`Page ${i} of ${n}`, W - M, H - 8, { align: "right" });
+  }
+  return doc;
+}
+
+async function downloadPdf() {
+  const btn = $("pdfBtn"), label = btn.textContent;
+  btn.disabled = true; btn.textContent = "Building PDF…";
+  try { (await buildPdf(lastResult)).save(`${baseName()}.pdf`); }
+  catch (e) { alert("PDF generation failed: " + e.message); }
+  finally { btn.disabled = false; btn.textContent = label; }
+}
+
+// ---------- GitHub ----------
+function toggleGh() { $("ghPanel").classList.toggle("hidden"); }
+
+async function saveToGithub() {
+  const btn = $("ghSave"), msg = $("ghStatusMsg");
+  btn.disabled = true;
+  try {
+    msg.innerHTML = '<span class="spinner"></span>Building PDF…';
+    const pdfName = `${baseName()}.pdf`;
+    const pdf = (await buildPdf(lastResult)).output("datauristring").split(",")[1];
+    const files = [
+      { path: "README.md", content: toMarkdown(lastResult, { frameImages: true, pdfName }) },
+      { path: pdfName, content: pdf, encoding: "base64" },
+      { path: "analysis.json", content: JSON.stringify({ source_video: currentName, ...lastResult }, null, 2) },
+      ...(lastResult.steps || []).map((s, i) => {
+        const f = frames[s.key_frame_index] || frames[0];
+        return f && { path: `frames/step-${i + 1}.jpg`, content: f.data.split(",")[1], encoding: "base64" };
+      }).filter(Boolean),
+    ];
+    const passcode = $("ghPass") ? $("ghPass").value : "";
+    msg.innerHTML = '<span class="spinner"></span>Committing to GitHub…';
+    const r = await fetch("api/github/save", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ passcode, test_id: lastResult.test_case?.id, title: lastResult.test_case?.title || lastResult.title, message: $("ghMsg").value, files }),
+    });
+    const body = await r.json().catch(() => ({ error: "HTTP " + r.status }));
+    if (!r.ok) throw new Error(body.error || ("HTTP " + r.status));
+    if (passcode) localStorage.setItem("ghPass", passcode);
+    msg.innerHTML = `<span class="ok">Saved ✓</span> <a href="${esc(body.folder_url)}" target="_blank" rel="noopener">Open folder</a> · <a href="${esc(body.commit_url)}" target="_blank" rel="noopener">View commit</a>`;
+  } catch (e) {
+    msg.innerHTML = `<span class="error">Error: ${esc(e.message)}</span>`;
+  } finally { btn.disabled = false; }
 }
 </script>
 </body>
